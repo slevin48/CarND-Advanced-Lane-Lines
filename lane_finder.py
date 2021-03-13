@@ -207,7 +207,7 @@ class LaneFinder:
         road_mask = cv2.morphologyEx(road_mask, cv2.MORPH_OPEN, small_kernel)
         road_mask = cv2.dilate(road_mask, big_kernel)
 
-        img2, contours, hierarchy = cv2.findContours(road_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+        img2, contours = cv2.findContours(road_mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
 
         biggest_area = 0
         for contour in contours:
