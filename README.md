@@ -44,7 +44,7 @@ The goals / steps of this project were the following:
 [image29]: ./readme_images/warped_lanes.jpg "Undistorted single image"
 [image30]: ./output_images/test5.jpg "Undistorted single image"
 
-##Camera Calibration
+## Camera Calibration
 Before starting the implementation of the lane detection pipeline, the first thing that should be done is camera calibration. That would help us:
 * undistort the images coming from camera, thus improving the quality of geometrical measurement
 * estimate the spatial resolution of pixels per meter in both *x* and *y* directions
@@ -74,7 +74,7 @@ where **M** is camera matrix and *s* is scalar different from zero. This equatio
 |![Pinhole camera model][image4]|
 
 
-##Finding projective transformation
+## Finding projective transformation
 Next step is to find the projective transform so the original images can be warped so that it looks like the camera is placed directly above the road. OOne approach is to hand tune the source and destination points, which are required to compute the transformation matrix. On the other hand, the script that does that for us can be created based on linear perspective geometry. Let's look at the perspective geometry on the renaissance painting "Architectural Veduta" by Italian painter Francesco di Giorgio Martini. It is easy to note that all lines meet at a single point called vanishing point. The second thing to note is that the square floor tiles centered horizontally in the image, appear as trapezoids with horizontal top and bottom edges and side edges radiating from the vanishing point.  
 
 | Architectural Veduta          |
@@ -125,7 +125,7 @@ Once again, lets just reflect on what is the matrix returned by the `cv2.getPers
 where **H** is homography matrix returned as a result of `cv2.getPerspectiveTransform()` and *s* is scalar different from zero. 
 
 
-##Estimating pixel resolution
+## Estimating pixel resolution
 Next important step is to estimate resolution in pixels per meter of the warped image. It also can be done by hand, but as previously we'll create a script that does that for us. In the course materials, it was stated that width of the lane is no less than 12 feet. In order to estimate the resolution in pixels per meter, the images with the straight lines will be used. They will be unwarped and the distance between the lines will be measured. The lower of two distances will be assumed to be 12 feet or 3.6576 meters. 
 
 To start, the images with the straight lines would be unwarped and color would be converted to HLS space. To find the lanes the threshold would be applied to the luminesence component. Also, only some region of interest is taken into account. Since lines were straight heading towards the vanishing point, after the warping they will be vertical. The centroids of the blobs on left and right images would be calculated using image moments and function `cv2.moments()`. Since the lane lines are vertical the width of the lane in pixels is the difference between the *x* coordinates of two centroids. That allows for the calculation of the width in pixels and then resolution in *x* direction. This procedure is implemented between line 71 and 
@@ -185,14 +185,14 @@ The pipeline is implemented in the class `LaneFinder` that does the lane finding
 The pipeline for single images goes through several steps. Let us see how initial image looks:
 ![alt text][image16]
 
-####1. Image undistortion, warping and color space conversion.
+#### 1. Image undistortion, warping and color space conversion.
 The image gets undistorted first, then the perspective transformation is applied to the undistorted image. After that, the images is converted into HLS and LAB color space. L channels of both HLS and LAB channels will be used to track the bright regions of the image, while B channel is used to track the yellow lines on the image. Also, some filtering is performed to reduce the noise, `cv2.medianBlur()` is used since it maintains the edges. Also for the use of the harder challenge video, the greenish areas are unmasked. Part of the code that performs this is from line 187 to 220. The undistorted and warped images are:
 
 | Undistorted original image  | Warped undistorted image   |
 |-----------------------------|----------------------------|
 |![alt text][image17]         |![alt text][image18]        |
 
-####2. Finding bright or yellow areas
+#### 2. Finding bright or yellow areas
 To find the bright or yellow areas, the morphological TOP HAT operation is used. It isolates the areas brighter than their surroundings. This operation is used in order to make pipeline robust against the lighting changes. In selected case, the lightness of the road surface changes, but we'll see that it does not affect the tophat morphological operation. The edge detection not used since they are extremely affected by the noise on the image, which makes them unsuitable for harder challenges. After applying TOP HAT operation, the image is thresholded using adaptive threshold which adds a bit more to the overall robustness. This part is implemented in lines 225 to 237. The resulting images are:
 
 | Tophat on L channel from LAB| Tophat on L channel from HLS  |Tophat on B channel from LAB|
@@ -202,14 +202,14 @@ To find the bright or yellow areas, the morphological TOP HAT operation is used.
 |![alt text][image22]         |![alt text][image23]           |![alt text][image24]        |
 
 
-####3. Calculating single mask and passing it to the `LaneLineFinder`
+#### 3. Calculating single mask and passing it to the `LaneLineFinder`
 Once the masks are calculated, logical *or* is applied between them in order to obtain the total mask. Since the threshold is kept quite low, there will be a lot of noise. To avoid noise interfering with lane finding procedure, the mask is eroded which removes all the regions smaller than the structuring element. Once that is finished the masks are passed to `LaneLineFinder` which actually looks for the line in the binary image. This part is implemented from line 236 to line 248. The results are:
 
 | Total mask           |     Eroded mask      |
 |----------------------|----------------------|
 |![alt text][image25]  |![alt text][image26]  |
 
-####4. Finding the line in a mask and fitting polynomial
+#### 4. Finding the line in a mask and fitting polynomial
 When the mask is found, the search for the line begins. The initial point to start a search is somewhere 1.82 meters (6 feet). Under the assumption that lane is 12feet wide and that the car is in its middle, we would be spot on. Since that might not hold, the search is performed in its surroundings. The window at the bottom of the image with the highest number of points included found. After that, we go one layer up and perform the same search but right now, we start from the maximum from the layer below. The search is performed until the top of the image is reached, gradually eliminating points outside of the maximal region. Function that does this is `LaneLineFinder.find_lane_line()`. After the lane points have been isolated, the polynomial fit is performed using `LaneLineFinder.fit_lane_line()`. In that procedures some statistics are calculated which help determine if the found line is good or not. The statistics include:
  1. Number of points in the fit 
  2. Quality of the fit calculated using covariance matrix returned by `numpy.polyfit`
@@ -222,14 +222,14 @@ All of these have to be above some empirically defined threshold. The maximal re
 |----------------------|----------------------|
 |![alt text][image27]  |![alt text][image28]  |
 
-####5. Draw lane on original image and calculate curvature
+#### 5. Draw lane on original image and calculate curvature
 If lanes are found, the curvature and position of the centre of the car is calculated using functions `get_curvature()` and `get_center_shift()`. Since the two lines are present, for the coefficient of the polynomial the mean value is used. The *y* coordinate for which the polynomials are evaluated is the bottom of the image. After that, the lines are drawn on a warped image and then unwarped and added to the original image. The last thing is to print out the values of curvature and offset of the center of the car. Results for all provided images can be found in [output_images](./output_images). Here is the result for discussed case:
 
 | Warped lines         |     Final result    |
 |----------------------|----------------------|
 |![alt text][image29]  |![alt text][image30]  |
 
-###Videos 
+### Videos 
 For the videos, the pipeline follows the basic pipeline applied to single images. Additionally, because of the temporal dimension, some additional filtering is applied. Here is what is done:
  1. The polynomial coefficients are averaged over last 7 iterations. That helps make the lane lines smoother and procedures more robust (line 88). 
  2. The lane has to be in close proximity to its previous position. That helps us narrow the search and avoid looking for windows with a maximum number of points in it (lines 132 -138).
@@ -245,7 +245,7 @@ Here are links to the videos:
 
 ---
 
-##Discussion
+## Discussion
 
 The biggest issue by far for me were sudden changes of light conditions. In those cases, the lines get either completely lost (going from bright to dark) or image gets filled with noise coming from the white spots. Although I have done the best I can to make pipeline robust against that kind of changes, they still can cause major problems, which is evident from [harder challenge video](./output_videos/lane_harder_challenge_video.mp4). More advanced filtering and brightness equalization techniques have to be examined. 
  
