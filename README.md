@@ -1,4 +1,6 @@
-**Advanced Lane Finding Project**
+# **Advanced Lane Finding Project**
+
+Read the [original article of Milutin N. Nikolic](https://medium.com/@ajsmilutin/advanced-lane-finding-5d0be4072514#.z93k3wkzl)
 
 The goals / steps of this project were the following:
 
